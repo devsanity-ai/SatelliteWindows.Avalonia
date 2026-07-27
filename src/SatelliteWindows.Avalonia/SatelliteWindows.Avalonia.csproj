@@ -18,17 +18,40 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.*" />
-    <!-- The vendored Dock.Avalonia stack is now a one-way dependency:
-         SatelliteWindow inherits Dock's HostWindow (apex unification), so
-         SatelliteWindows.Avalonia must reference the vendored Dock projects.
-         All vendored projects use the SatelliteWindows.Dock.* namespace
-         after rebrand — no "Dock.*" name leaks into consumers. -->
-    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Avalonia\SatelliteWindows.Dock.Avalonia.csproj" />
-    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Avalonia.Themes.Fluent\SatelliteWindows.Dock.Avalonia.Themes.Fluent.csproj" />
-    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Controls.Recycling\SatelliteWindows.Dock.Controls.Recycling.csproj" />
-    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Model.Mvvm\SatelliteWindows.Dock.Model.Mvvm.csproj" />
-    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Serializer.SystemTextJson\SatelliteWindows.Dock.Serializer.SystemTextJson.csproj" />
+    <!-- The vendored Dock.* stack IS this library (source vendored so the sealed Dock types can be
+         broken/extended here), not third-party packages: SatelliteWindow inherits Dock's HostWindow, so the
+         Dock public types are part of this library's API. During a normal BUILD these are plain references,
+         so Dock types flow transitively to source consumers. During PACK (-p:SwPacking=true, set by the
+         pack/publish step) they switch to PrivateAssets="all" so pack emits NO dangling <dependency> rows;
+         the IncludeVendoredDockInPackage target then folds their DLLs into this one package's lib/<tfm>/. -->
+    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Avalonia\SatelliteWindows.Dock.Avalonia.csproj">
+      <PrivateAssets Condition="'$(SwPacking)' == 'true'">all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Avalonia.Themes.Fluent\SatelliteWindows.Dock.Avalonia.Themes.Fluent.csproj">
+      <PrivateAssets Condition="'$(SwPacking)' == 'true'">all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Controls.Recycling\SatelliteWindows.Dock.Controls.Recycling.csproj">
+      <PrivateAssets Condition="'$(SwPacking)' == 'true'">all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Model.Mvvm\SatelliteWindows.Dock.Model.Mvvm.csproj">
+      <PrivateAssets Condition="'$(SwPacking)' == 'true'">all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\SatelliteWindows.Avalonia.Dock\src\SatelliteWindows.Dock.Serializer.SystemTextJson\SatelliteWindows.Dock.Serializer.SystemTextJson.csproj">
+      <PrivateAssets Condition="'$(SwPacking)' == 'true'">all</PrivateAssets>
+    </ProjectReference>
   </ItemGroup>
+
+  <!-- Fold the vendored Dock DLLs (and their transitive vendored deps) into this package's lib/<tfm>/ so it
+       is one self-contained NuGet — no separate Dock packages. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeVendoredDockInPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+  <Target Name="IncludeVendoredDockInPackage">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' and '%(Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <InternalsVisibleTo Include="SatelliteWindows.Avalonia.Tests" />
   </ItemGroup>
